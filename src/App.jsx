@@ -1,7 +1,4 @@
 import { useState } from "react"
-import { GoogleGenAI } from "@google/genai"
-
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_KEY })
 
 export default function App() {
   const [meta, setMeta] = useState("")
@@ -9,16 +6,28 @@ export default function App() {
   const [cargando, setCargando] = useState(false)
 
   async function crearPlan() {
+    console.log("KEY:", import.meta.env.VITE_GROQ_KEY)
     if (!meta.trim()) return
     setCargando(true)
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-lite",
-        contents: `Eres MindStep, un coach minimalista. El usuario quiere: "${meta}". 
-        Responde SOLO con JSON así, sin ningún texto extra ni backticks:
-        {"meta":"la meta resumida","dias":30,"hoy":"una sola tarea concreta para hoy","manana":"una sola tarea para mañana","pasado":"una sola tarea para pasado mañana"}`
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_GROQ_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{
+            role: "user",
+            content: `Eres MindStep, un coach minimalista. El usuario quiere: "${meta}". 
+            Responde SOLO con JSON así, sin ningún texto extra ni backticks:
+            {"meta":"la meta resumida","dias":30,"hoy":"una sola tarea concreta para hoy","manana":"una sola tarea para mañana","pasado":"una sola tarea para pasado mañana"}`
+          }]
+        })
       })
-      const texto = response.text
+      const data = await res.json()
+      const texto = data.choices[0].message.content
       const limpio = texto.replace(/```json|```/g, "").trim()
       setPlan(JSON.parse(limpio))
     } catch (e) {
